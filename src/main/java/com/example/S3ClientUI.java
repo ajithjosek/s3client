@@ -106,6 +106,11 @@ public class S3ClientUI extends JFrame {
         topPanel.add(saveProfileButton, gbc);
 
         gbc.gridx = 2;
+        gbc.gridy = 2;
+        JButton deleteProfileButton = new JButton("Delete Profile");
+        topPanel.add(deleteProfileButton, gbc);
+
+        gbc.gridx = 2;
         gbc.gridy = 5;
         JButton listButton = new JButton("List");
         topPanel.add(listButton, gbc);
@@ -178,6 +183,13 @@ public class S3ClientUI extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 saveProfile();
+            }
+        });
+
+        deleteProfileButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                deleteProfile();
             }
         });
 
@@ -266,6 +278,53 @@ public class S3ClientUI extends JFrame {
 
         profileManager.saveProfile(selectedProfile);
         log("Profile '" + profileName + "' saved.");
+    }
+
+    private void deleteProfile() {
+        Profile selectedProfile = (Profile) profileComboBox.getSelectedItem();
+        if (selectedProfile == null) {
+            log("No profile selected to delete.");
+            return;
+        }
+
+        // Show confirmation dialog
+        int result = JOptionPane.showConfirmDialog(
+            this,
+            "Are you sure you want to delete the profile '" + selectedProfile.getProfileName() + "'?\nThis action cannot be undone.",
+            "Confirm Profile Deletion",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE
+        );
+
+        if (result == JOptionPane.YES_OPTION) {
+            int selectedIndex = profileComboBox.getSelectedIndex();
+
+            // Remove the profile from the combo box
+            profileComboBox.removeItemAt(selectedIndex);
+
+            // Remove the profile from the profile manager
+            profileManager.deleteProfile(selectedProfile);
+
+            log("Profile '" + selectedProfile.getProfileName() + "' deleted.");
+
+            // Select the next available profile, or clear the fields if none remain
+            int itemCount = profileComboBox.getItemCount();
+            if (itemCount > 0) {
+                // If we deleted the last item, select the new last item, otherwise select the same index
+                int newSelectedIndex = selectedIndex >= itemCount ? itemCount - 1 : selectedIndex;
+                profileComboBox.setSelectedIndex(newSelectedIndex);
+                selectProfile();
+            } else {
+                // If no profiles remain, clear the fields
+                bucketNameField.setText("");
+                clientIdField.setText("");
+                clientSecretField.setText("");
+                regionField.setText("us-east-1");
+                s3Service = null;
+            }
+        } else {
+            log("Deletion of profile '" + selectedProfile.getProfileName() + "' was cancelled by the user.");
+        }
     }
 
     private void listObjects() {

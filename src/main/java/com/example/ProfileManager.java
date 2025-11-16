@@ -40,6 +40,11 @@ public class ProfileManager {
         saveProfiles();
     }
 
+    public void deleteProfile(Profile profile) {
+        profiles.removeIf(p -> p.getProfileName().equals(profile.getProfileName()));
+        saveProfiles();
+    }
+
     private List<Profile> loadProfiles() {
         try {
             File file = new File(PROFILES_FILE);
