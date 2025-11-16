@@ -111,6 +111,11 @@ public class S3ClientUI extends JFrame {
         topPanel.add(deleteProfileButton, gbc);
 
         gbc.gridx = 2;
+        gbc.gridy = 3;
+        JButton copyProfileButton = new JButton("Copy Profile");
+        topPanel.add(copyProfileButton, gbc);
+
+        gbc.gridx = 2;
         gbc.gridy = 5;
         JButton listButton = new JButton("List");
         topPanel.add(listButton, gbc);
@@ -190,6 +195,13 @@ public class S3ClientUI extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 deleteProfile();
+            }
+        });
+
+        copyProfileButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                copyProfile();
             }
         });
 
@@ -324,6 +336,55 @@ public class S3ClientUI extends JFrame {
             }
         } else {
             log("Deletion of profile '" + selectedProfile.getProfileName() + "' was cancelled by the user.");
+        }
+    }
+
+    private void copyProfile() {
+        Profile selectedProfile = (Profile) profileComboBox.getSelectedItem();
+        if (selectedProfile == null) {
+            log("No profile selected to copy.");
+            JOptionPane.showMessageDialog(this, "Please select a profile to copy first.",
+                "No Profile Selected", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String newProfileName = JOptionPane.showInputDialog(this,
+            "Enter new profile name (copying from: " + selectedProfile.getProfileName() + "):",
+            "Copy Profile",
+            JOptionPane.PLAIN_MESSAGE);
+
+        if (newProfileName != null && !newProfileName.isEmpty()) {
+            // Check if a profile with the same name already exists
+            boolean profileExists = false;
+            for (int i = 0; i < profileComboBox.getItemCount(); i++) {
+                Profile profile = (Profile) profileComboBox.getItemAt(i);
+                if (profile.getProfileName().equals(newProfileName)) {
+                    profileExists = true;
+                    break;
+                }
+            }
+
+            if (profileExists) {
+                JOptionPane.showMessageDialog(this,
+                    "A profile with the name '" + newProfileName + "' already exists.",
+                    "Profile Name Exists",
+                    JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Create new profile with same settings as the selected profile
+            Profile newProfile = new Profile(
+                newProfileName,
+                selectedProfile.getBucketName(),
+                selectedProfile.getClientId(),
+                selectedProfile.getClientSecret(),
+                selectedProfile.getRegion()  // Copy the region as well!
+            );
+
+            profileComboBox.addItem(newProfile);
+            profileComboBox.setSelectedItem(newProfile);
+            selectProfile(); // Update UI with the new profile's data
+            log("Profile '" + selectedProfile.getProfileName() + "' copied to '" + newProfileName + "'");
         }
     }
 
