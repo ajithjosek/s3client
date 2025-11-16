@@ -1,12 +1,15 @@
 package com.example;
 
 import javax.swing.*;
+import javax.swing.tree.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.TreeSelectionListener;
+import javax.swing.tree.TreePath;
 
 public class S3ClientUI extends JFrame {
 
@@ -22,6 +25,13 @@ public class S3ClientUI extends JFrame {
     private JButton deleteButton;
     private JButton getObjectButton;
     private JButton uploadButton;
+    // Tree view components
+    private JTree bucketTree;
+    private DefaultTreeModel treeModel;
+    private JButton treeRefreshButton;
+    private JButton treeGetObjectButton;
+    private JButton treeDeleteButton;
+    private JButton treeUploadButton;
 
     private S3Service s3Service;
     private ProfileManager profileManager;
@@ -151,10 +161,70 @@ public class S3ClientUI extends JFrame {
 
         tabbedPane.addTab("List", listPanel);
 
+        // Tree View Tab
+        JPanel treePanel = new JPanel(new BorderLayout());
+        treeModel = new DefaultTreeModel(new DefaultMutableTreeNode("Root"));
+        treeModel.setAsksAllowsChildren(true);
+        bucketTree = new JTree(treeModel);
+        treePanel.add(new JScrollPane(bucketTree), BorderLayout.CENTER);
+
+        // Create button panel for tree operations
+        JPanel treeButtonPanel = new JPanel();
+        treeRefreshButton = new JButton("Refresh Tree");
+        treeGetObjectButton = new JButton("Download");
+        treeDeleteButton = new JButton("Delete");
+        treeUploadButton = new JButton("Upload to Path");
+
+        treeGetObjectButton.setEnabled(false);
+        treeDeleteButton.setEnabled(false);
+
+        treeButtonPanel.add(treeRefreshButton);
+        treeButtonPanel.add(treeGetObjectButton);
+        treeButtonPanel.add(treeDeleteButton);
+        treeButtonPanel.add(treeUploadButton);
+
+        treePanel.add(treeButtonPanel, BorderLayout.SOUTH);
+
+        // Add selection listener to enable/disable tree buttons based on selection
+        bucketTree.addTreeSelectionListener(e -> {
+            TreePath selectedPath = e.getPath();
+            if (selectedPath != null) {
+                DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) selectedPath.getLastPathComponent();
+                if (selectedNode.getUserObject() instanceof String && !selectedNode.isLeaf()) {
+                    // Directory node - enable upload only
+                    treeGetObjectButton.setEnabled(false);
+                    treeDeleteButton.setEnabled(false);
+                    treeUploadButton.setEnabled(true);
+                } else if (selectedNode.isLeaf() && selectedNode.getUserObject() instanceof String) {
+                    // File node - enable download and delete
+                    treeGetObjectButton.setEnabled(true);
+                    treeDeleteButton.setEnabled(true);
+                    treeUploadButton.setEnabled(true);
+                } else {
+                    // Root node or other - disable file operations
+                    treeGetObjectButton.setEnabled(false);
+                    treeDeleteButton.setEnabled(false);
+                    treeUploadButton.setEnabled(false);
+                }
+            } else {
+                treeGetObjectButton.setEnabled(false);
+                treeDeleteButton.setEnabled(false);
+                treeUploadButton.setEnabled(false);
+            }
+        });
+
+        tabbedPane.addTab("Tree View", treePanel);
+
         // Log Tab
         logArea = new JTextArea();
         logArea.setEditable(false);
         tabbedPane.addTab("Log", new JScrollPane(logArea));
+
+        // Add Action Listeners for tree buttons after the UI components are initialized
+        treeRefreshButton.addActionListener(e -> refreshTreeView());
+        treeGetObjectButton.addActionListener(e -> treeGetSelectedObject());
+        treeDeleteButton.addActionListener(e -> treeDeleteSelectedObject());
+        treeUploadButton.addActionListener(e -> treeUploadToObjectPath());
 
         // Add panels to frame
         add(topPanel, BorderLayout.NORTH);
@@ -509,6 +579,238 @@ public class S3ClientUI extends JFrame {
 
     private void log(String message) {
         logArea.append(message + "\n");
+    }
+
+    private void refreshTreeView() {
+        String bucketName = bucketNameField.getText();
+        if (bucketName == null || bucketName.isEmpty()) {
+            log("Please enter a bucket name to refresh tree view.");
+            return;
+        }
+
+        if (s3Service == null) {
+            log("S3 service not initialized. Please select a valid profile.");
+            return;
+        }
+
+        log("Refreshing tree view for bucket: " + bucketName);
+        try {
+            // Get all objects from the bucket
+            List<String> objects = s3Service.listObjects(bucketName, "");
+
+            // Create new tree model with bucket as root
+            DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode(bucketName);
+
+            // Build hierarchical tree structure
+            for (String objectKey : objects) {
+                String[] parts = objectKey.split("/");
+                DefaultMutableTreeNode currentNode = rootNode;
+
+                // Navigate/create the path structure
+                for (int i = 0; i < parts.length - 1; i++) {
+                    String part = parts[i];
+                    DefaultMutableTreeNode childNode = findOrCreateChild(currentNode, part);
+                    currentNode = childNode;
+                }
+
+                // Add the final file as a leaf node
+                if (parts.length > 0) {
+                    String fileName = parts[parts.length - 1];
+                    DefaultMutableTreeNode fileNode = new DefaultMutableTreeNode(fileName);
+                    currentNode.add(fileNode);
+                }
+            }
+
+            treeModel.setRoot(rootNode);
+            treeModel.reload(); // Refresh the tree display
+
+            // Expand all nodes for better visibility
+            expandAllNodes(bucketTree, new TreePath(rootNode));
+
+            log("Tree view refreshed with " + objects.size() + " objects.");
+        } catch (Exception e) {
+            log("Error refreshing tree view: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Error refreshing tree view: " + e.getMessage(),
+                "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private DefaultMutableTreeNode findOrCreateChild(DefaultMutableTreeNode parent, String childName) {
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            DefaultMutableTreeNode child = (DefaultMutableTreeNode) parent.getChildAt(i);
+            if (child.getUserObject().equals(childName)) {
+                return child;
+            }
+        }
+        // If not found, create a new directory node
+        DefaultMutableTreeNode newChild = new DefaultMutableTreeNode(childName);
+        parent.add(newChild);
+        return newChild;
+    }
+
+    private void expandAllNodes(JTree tree, TreePath parent) {
+        DefaultMutableTreeNode node = (DefaultMutableTreeNode) parent.getLastPathComponent();
+        if (node.getChildCount() >= 0) {
+            for (int i = 0; i < node.getChildCount(); i++) {
+                DefaultMutableTreeNode child = (DefaultMutableTreeNode) node.getChildAt(i);
+                expandAllNodes(tree, parent.pathByAddingChild(child));
+            }
+        }
+        tree.expandPath(parent);
+    }
+
+    private void treeGetSelectedObject() {
+        TreePath selectedPath = bucketTree.getSelectionPath();
+        if (selectedPath != null) {
+            DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) selectedPath.getLastPathComponent();
+            if (selectedNode.isLeaf() && selectedNode.getUserObject() instanceof String) {
+                String fileName = (String) selectedNode.getUserObject();
+                // Get the full path by traversing up the tree
+                String fullPath = getFullObjectPath(selectedNode);
+
+                String bucketName = bucketNameField.getText();
+                log("Getting object '" + fullPath + "' from bucket '" + bucketName + "'");
+
+                try {
+                    // Get the object content from S3
+                    String content = s3Service.getObject(bucketName, fullPath);
+
+                    // Create a file save dialog
+                    JFileChooser fileChooser = new JFileChooser();
+                    fileChooser.setDialogTitle("Save Object As");
+                    fileChooser.setSelectedFile(new java.io.File(fileName));
+
+                    int userSelection = fileChooser.showSaveDialog(this);
+
+                    if (userSelection == JFileChooser.APPROVE_OPTION) {
+                        java.io.File fileToSave = fileChooser.getSelectedFile();
+
+                        // Write the content to the selected file
+                        try (java.io.FileWriter fileWriter = new java.io.FileWriter(fileToSave)) {
+                            fileWriter.write(content);
+                            log("Object '" + fullPath + "' saved to '" + fileToSave.getAbsolutePath() + "'");
+                        } catch (java.io.IOException e) {
+                            log("Error writing file: " + e.getMessage());
+                            JOptionPane.showMessageDialog(this, "Error saving file: " + e.getMessage(),
+                                "Save Error", JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+                } catch (Exception e) {
+                    log("Error getting object: " + e.getMessage());
+                    JOptionPane.showMessageDialog(this, "Error getting object from S3: " + e.getMessage(),
+                        "S3 Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                log("Please select a file (leaf node) to download.");
+            }
+        } else {
+            log("Please select an object from the tree to download.");
+        }
+    }
+
+    private String getFullObjectPath(DefaultMutableTreeNode node) {
+        java.util.List<String> pathParts = new java.util.ArrayList<>();
+
+        // Traverse up the tree to build the path
+        DefaultMutableTreeNode current = node;
+        while (current != null && current.getUserObject() instanceof String) {
+            pathParts.add(0, (String) current.getUserObject());
+            current = (DefaultMutableTreeNode) current.getParent();
+        }
+
+        // Skip the root node (bucket name) when building the path for S3
+        StringBuilder path = new StringBuilder();
+        for (int i = 1; i < pathParts.size(); i++) { // Start from 1 to skip bucket name
+            if (i > 1) path.append("/");
+            path.append(pathParts.get(i));
+        }
+
+        return path.toString();
+    }
+
+    private void treeDeleteSelectedObject() {
+        TreePath selectedPath = bucketTree.getSelectionPath();
+        if (selectedPath != null) {
+            DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) selectedPath.getLastPathComponent();
+            if (selectedNode.isLeaf() && selectedNode.getUserObject() instanceof String) {
+                String fileName = (String) selectedNode.getUserObject();
+                String fullPath = getFullObjectPath(selectedNode);
+
+                // Show confirmation dialog
+                int result = JOptionPane.showConfirmDialog(
+                    this,
+                    "Are you sure you want to delete the object '" + fullPath + "'?\nThis action cannot be undone.",
+                    "Confirm Deletion",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+                );
+
+                if (result == JOptionPane.YES_OPTION) {
+                    String bucketName = bucketNameField.getText();
+                    log("Deleting object '" + fullPath + "' from bucket '" + bucketName + "'");
+                    try {
+                        s3Service.deleteObject(bucketName, fullPath);
+                        // Refresh the tree view after deletion
+                        refreshTreeView();
+                    } catch (Exception e) {
+                        log("Error deleting object: " + e.getMessage());
+                        JOptionPane.showMessageDialog(this, "Error deleting object: " + e.getMessage(),
+                            "S3 Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                } else {
+                    log("Deletion of '" + fullPath + "' was cancelled by the user.");
+                }
+            } else {
+                log("Please select a file (leaf node) to delete.");
+            }
+        } else {
+            log("Please select an object from the tree to delete.");
+        }
+    }
+
+    private void treeUploadToObjectPath() {
+        TreePath selectedPath = bucketTree.getSelectionPath();
+
+        String targetPath = "";
+        if (selectedPath != null) {
+            DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) selectedPath.getLastPathComponent();
+            if (selectedNode.getUserObject() instanceof String) {
+                if (selectedNode.isLeaf()) {
+                    // If a file is selected, use its parent directory
+                    DefaultMutableTreeNode parent = (DefaultMutableTreeNode) selectedNode.getParent();
+                    if (parent != null && parent != treeModel.getRoot()) {
+                        targetPath = getFullObjectPath(parent) + "/";
+                    }
+                } else {
+                    // If a directory is selected, use that path
+                    targetPath = getFullObjectPath(selectedNode) + "/";
+                }
+            }
+        }
+
+        String bucketName = bucketNameField.getText();
+        if (s3Service == null || bucketName == null || bucketName.isEmpty()) {
+            log("Please select a profile and enter a bucket name.");
+            return;
+        }
+
+        JFileChooser fileChooser = new JFileChooser();
+        int returnValue = fileChooser.showOpenDialog(this);
+        if (returnValue == JFileChooser.APPROVE_OPTION) {
+            String filePath = fileChooser.getSelectedFile().getAbsolutePath();
+            String fileName = fileChooser.getSelectedFile().getName();
+            String key = targetPath + fileName;
+            log("Uploading file '" + filePath + "' to bucket '" + bucketName + "' with key '" + key + "'");
+            try {
+                s3Service.putObject(bucketName, key, new java.io.File(filePath));
+                // Refresh the tree view after upload
+                refreshTreeView();
+            } catch (Exception e) {
+                log("Error uploading file: " + e.getMessage());
+                JOptionPane.showMessageDialog(this, "Error uploading file: " + e.getMessage(),
+                    "S3 Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 
     public static void main(String[] args) {
