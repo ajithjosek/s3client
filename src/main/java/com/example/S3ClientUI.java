@@ -274,6 +274,8 @@ public class S3ClientUI extends JFrame {
         if (profileComboBox.getItemCount() > 0) {
             profileComboBox.setSelectedIndex(0);
             selectProfile(); // Populate the fields with the first profile's data
+            // Auto-refresh the list view to show initial content
+            autoRefreshListView();
         }
 
         // Initially set fields as non-editable except path field
@@ -530,6 +532,9 @@ public class S3ClientUI extends JFrame {
             }
         } catch (Exception e) {
             log("Error listing objects: " + e.getMessage());
+            // Clear the list to show empty state on error
+            listModel.clear();
+            listModel.addElement("Error loading list: " + e.getMessage());
         }
     }
 
@@ -773,6 +778,11 @@ public class S3ClientUI extends JFrame {
                 log("List view auto-refreshed with " + objects.size() + " objects.");
             } catch (Exception e) {
                 log("Error auto-refreshing list view: " + e.getMessage());
+                // Clear the list to show error state on error
+                SwingUtilities.invokeLater(() -> {
+                    listModel.clear();
+                    listModel.addElement("Error loading list: " + e.getMessage());
+                });
             }
         });
     }
