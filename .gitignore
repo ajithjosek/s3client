@@ -1,0 +1,76 @@
+# Maven artifacts
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+maven-antrun-extended.properties
+jacoco.exec
+
+# IDE artifacts
+*.orig
+*.bak
+*.tmp
+
+# IDE - Eclipse
+.classpath
+.project
+.settings/
+bin/
+tmp/
+.metadata
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.loadpath
+.recommenders
+
+# IDE - IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# IDE - NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Logs
+*.log
+!src/main/resources/*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Profile settings and sensitive data
+profiles.json
+config.properties
+
+# Generated files
+*.class
+*.jar
+*.war
+*.ear
+*.tar.gz
+*.zip
+
+# Backup files
+*~
+*.bak
+.bak
+~$
