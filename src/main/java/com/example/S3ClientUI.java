@@ -5,6 +5,8 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.event.ListSelectionEvent;
 
 public class S3ClientUI extends JFrame {
 
@@ -17,6 +19,9 @@ public class S3ClientUI extends JFrame {
     private JTextArea logArea;
     private JList<String> objectList;
     private DefaultListModel<String> listModel;
+    private JButton deleteButton;
+    private JButton getObjectButton;
+    private JButton uploadButton;
 
     private S3Service s3Service;
     private ProfileManager profileManager;
@@ -112,10 +117,18 @@ public class S3ClientUI extends JFrame {
         objectList = new JList<>(listModel);
         listPanel.add(new JScrollPane(objectList), BorderLayout.CENTER);
 
+        // Add selection listener to enable/disable delete button based on selection
+        objectList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) { // Prevent multiple events during selection
+                deleteButton.setEnabled(objectList.getSelectedValue() != null);
+            }
+        });
+
         JPanel buttonPanel = new JPanel();
-        JButton getObjectButton = new JButton("Get Object");
-        JButton uploadButton = new JButton("Upload");
-        JButton deleteButton = new JButton("Delete");
+        getObjectButton = new JButton("Get Object");
+        uploadButton = new JButton("Upload");
+        deleteButton = new JButton("Delete");
+        deleteButton.setEnabled(false); // Initially disabled until an object is selected
         buttonPanel.add(getObjectButton);
         buttonPanel.add(uploadButton);
         buttonPanel.add(deleteButton);
@@ -312,13 +325,26 @@ public class S3ClientUI extends JFrame {
     private void deleteObject() {
         String selectedObject = objectList.getSelectedValue();
         if (selectedObject != null) {
-            String bucketName = bucketNameField.getText();
-            log("Deleting object '" + selectedObject + "' from bucket '" + bucketName + "'");
-            try {
-                s3Service.deleteObject(bucketName, selectedObject);
-                listObjects();
-            } catch (Exception e) {
-                log("Error deleting object: " + e.getMessage());
+            // Show confirmation dialog
+            int result = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to delete the object '" + selectedObject + "'?\nThis action cannot be undone.",
+                "Confirm Deletion",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+            );
+
+            if (result == JOptionPane.YES_OPTION) {
+                String bucketName = bucketNameField.getText();
+                log("Deleting object '" + selectedObject + "' from bucket '" + bucketName + "'");
+                try {
+                    s3Service.deleteObject(bucketName, selectedObject);
+                    listObjects(); // Refresh the list after deletion
+                } catch (Exception e) {
+                    log("Error deleting object: " + e.getMessage());
+                }
+            } else {
+                log("Deletion of '" + selectedObject + "' was cancelled by the user.");
             }
         } else {
             log("Please select an object to delete.");
