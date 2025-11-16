@@ -224,6 +224,16 @@ public class S3ClientUI extends JFrame {
         logScrollPane = new JScrollPane(logArea);
         tabbedPane.addTab("Log", logScrollPane);
 
+        // Add tab change listener to auto-refresh tree when Tree View tab is selected
+        tabbedPane.addChangeListener(e -> {
+            JTabbedPane sourceTabbedPane = (JTabbedPane) e.getSource();
+            int selectedTabIndex = sourceTabbedPane.getSelectedIndex();
+            if (selectedTabIndex == 1 && "Tree View".equals(sourceTabbedPane.getTitleAt(selectedTabIndex))) {
+                // Tree View tab was selected, auto-refresh if we have a valid profile
+                autoRefreshTreeView();
+            }
+        });
+
         // Add Action Listeners for tree buttons after the UI components are initialized
         treeRefreshButton.addActionListener(e -> refreshTreeView());
         treeGetObjectButton.addActionListener(e -> treeGetSelectedObject());
@@ -611,6 +621,74 @@ public class S3ClientUI extends JFrame {
                   .replace(">", "&gt;")
                   .replace("\"", "&quot;")
                   .replace("'", "&#x27;");
+    }
+
+    private void autoRefreshTreeView() {
+        // Check if we have a valid profile and S3 service
+        if (s3Service == null) {
+            log("S3 service not initialized. Please select a valid profile first.");
+            return;
+        }
+
+        // Check if we have a bucket name
+        String bucketName = bucketNameField.getText();
+        if (bucketName == null || bucketName.isEmpty()) {
+            log("No bucket name specified. Please enter a bucket name first.");
+            return;
+        }
+
+        // Check if the tree is already showing this bucket to avoid unnecessary refreshes
+        if (treeModel.getRoot() != null) {
+            DefaultMutableTreeNode currentRoot = (DefaultMutableTreeNode) treeModel.getRoot();
+            if (currentRoot.getUserObject() != null &&
+                currentRoot.getUserObject().equals(bucketName)) {
+                // Tree already shows the correct bucket, no need to refresh
+                return;
+            }
+        }
+
+        log("Auto-refreshing tree view for bucket: " + bucketName);
+
+        // Use SwingUtilities.invokeLater to ensure the refresh happens on the event dispatch thread
+        SwingUtilities.invokeLater(() -> {
+            try {
+                // Get all objects from the bucket
+                List<String> objects = s3Service.listObjects(bucketName, "");
+
+                // Create new tree model with bucket as root
+                DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode(bucketName);
+
+                // Build hierarchical tree structure
+                for (String objectKey : objects) {
+                    String[] parts = objectKey.split("/");
+                    DefaultMutableTreeNode currentNode = rootNode;
+
+                    // Navigate/create the path structure
+                    for (int i = 0; i < parts.length - 1; i++) {
+                        String part = parts[i];
+                        DefaultMutableTreeNode childNode = findOrCreateChild(currentNode, part);
+                        currentNode = childNode;
+                    }
+
+                    // Add the final file as a leaf node
+                    if (parts.length > 0) {
+                        String fileName = parts[parts.length - 1];
+                        DefaultMutableTreeNode fileNode = new DefaultMutableTreeNode(fileName);
+                        currentNode.add(fileNode);
+                    }
+                }
+
+                treeModel.setRoot(rootNode);
+                treeModel.reload(); // Refresh the tree display
+
+                // Expand all nodes for better visibility
+                expandAllNodes(bucketTree, new TreePath(rootNode));
+
+                log("Tree view auto-refreshed with " + objects.size() + " objects.");
+            } catch (Exception e) {
+                log("Error auto-refreshing tree view: " + e.getMessage());
+            }
+        });
     }
 
     private void refreshTreeView() {
