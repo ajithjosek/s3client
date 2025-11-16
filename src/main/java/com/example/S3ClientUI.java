@@ -96,6 +96,8 @@ public class S3ClientUI extends JFrame {
         gbc.gridx = 1;
         gbc.gridy = 5;
         pathField = new JTextField(20);
+        // Add Enter key listener to trigger List button action
+        pathField.addActionListener(e -> listObjects());
         topPanel.add(pathField, gbc);
 
         gbc.gridx = 2;
