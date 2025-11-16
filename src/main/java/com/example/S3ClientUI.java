@@ -91,7 +91,7 @@ public class S3ClientUI extends JFrame {
 
         gbc.gridx = 0;
         gbc.gridy = 5;
-        topPanel.add(new JLabel("Path:"), gbc);
+        topPanel.add(new JLabel("Path or Prefix:"), gbc);
 
         gbc.gridx = 1;
         gbc.gridy = 5;
