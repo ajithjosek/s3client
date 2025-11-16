@@ -138,6 +138,8 @@ public class S3ClientUI extends JFrame {
         JPanel listPanel = new JPanel(new BorderLayout());
         listModel = new DefaultListModel<>();
         objectList = new JList<>(listModel);
+        // Add border to the list
+        objectList.setBorder(BorderFactory.createEtchedBorder());
         listPanel.add(new JScrollPane(objectList), BorderLayout.CENTER);
 
         // Add selection listener to enable/disable get and delete buttons based on selection
@@ -488,6 +490,10 @@ public class S3ClientUI extends JFrame {
         listModel.clear();
         try {
             List<String> objects = s3Service.listObjects(bucketName, path);
+
+            // Sort the objects alphabetically
+            objects.sort(String::compareTo);
+
             if (objects.isEmpty()) {
                 listModel.addElement("No objects in the given path");
             } else {
@@ -717,6 +723,9 @@ public class S3ClientUI extends JFrame {
             try {
                 String path = pathField.getText(); // Use the current path/prefix from the field
                 List<String> objects = s3Service.listObjects(bucketName, path);
+
+                // Sort the objects alphabetically
+                objects.sort(String::compareTo);
 
                 // Clear the list model and add new objects
                 listModel.clear();
