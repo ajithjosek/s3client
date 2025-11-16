@@ -1,4 +1,4 @@
-package com.example;
+package com.leapfront;
 
 import javax.swing.*;
 import javax.swing.tree.*;

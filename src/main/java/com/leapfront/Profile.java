@@ -1,4 +1,4 @@
-package com.example;
+package com.leapfront;
 
 public class Profile {
     private String profileName;

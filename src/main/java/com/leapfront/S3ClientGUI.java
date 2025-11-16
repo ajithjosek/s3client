@@ -1,4 +1,4 @@
-package com.example;
+package com.leapfront;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -14,6 +14,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+
+import com.leapfront.S3Service;
 
 public class S3ClientGUI extends JFrame {
 

@@ -67,7 +67,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.example.S3ClientApp</mainClass>
+                            <mainClass>com.leapfront.S3ClientApp</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
