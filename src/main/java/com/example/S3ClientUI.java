@@ -148,6 +148,12 @@ public class S3ClientUI extends JFrame {
         // Load Profiles
         loadProfiles();
 
+        // Auto-select first profile if available
+        if (profileComboBox.getItemCount() > 0) {
+            profileComboBox.setSelectedIndex(0);
+            selectProfile(); // Populate the fields with the first profile's data
+        }
+
         // Add Action Listeners
         profileComboBox.addActionListener(new ActionListener() {
             @Override
