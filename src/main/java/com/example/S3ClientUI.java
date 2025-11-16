@@ -19,7 +19,8 @@ public class S3ClientUI extends JFrame {
     private JPasswordField clientSecretField;
     private JTextField regionField;
     private JTextField pathField;
-    private JTextArea logArea;
+    private JEditorPane logArea;
+    private JScrollPane logScrollPane;
     private JList<String> objectList;
     private DefaultListModel<String> listModel;
     private JButton deleteButton;
@@ -216,9 +217,12 @@ public class S3ClientUI extends JFrame {
         tabbedPane.addTab("Tree View", treePanel);
 
         // Log Tab
-        logArea = new JTextArea();
+        logArea = new JEditorPane();
         logArea.setEditable(false);
-        tabbedPane.addTab("Log", new JScrollPane(logArea));
+        logArea.setContentType("text/html");
+        logArea.setText("<html><body></body></html>");
+        logScrollPane = new JScrollPane(logArea);
+        tabbedPane.addTab("Log", logScrollPane);
 
         // Add Action Listeners for tree buttons after the UI components are initialized
         treeRefreshButton.addActionListener(e -> refreshTreeView());
@@ -578,7 +582,35 @@ public class S3ClientUI extends JFrame {
     }
 
     private void log(String message) {
-        logArea.append(message + "\n");
+        // Determine if this is an error message based on content
+        boolean isError = message.toLowerCase().contains("error") ||
+                         message.toLowerCase().contains("exception") ||
+                         message.toLowerCase().contains("failed") ||
+                         message.toLowerCase().contains("invalid");
+
+        // Get current text
+        String currentText = logArea.getText();
+
+        // Prepare HTML for the new message
+        String color = isError ? "red" : "black";
+        String newMessage = "<font color=\"" + color + "\">" + escapeHtml(message) + "</font><br>";
+
+        // Set the updated HTML content
+        String updatedText = currentText.substring(0, currentText.lastIndexOf("</body>")) +
+                            newMessage +
+                            "</body></html>";
+        logArea.setText(updatedText);
+
+        // Scroll to bottom
+        logArea.setCaretPosition(logArea.getDocument().getLength());
+    }
+
+    private String escapeHtml(String text) {
+        return text.replace("&", "&amp;")
+                  .replace("<", "&lt;")
+                  .replace(">", "&gt;")
+                  .replace("\"", "&quot;")
+                  .replace("'", "&#x27;");
     }
 
     private void refreshTreeView() {
