@@ -29,7 +29,7 @@ public class S3ClientUI extends JFrame {
     public S3ClientUI() {
         profileManager = new ProfileManager();
 
-        setTitle("S3 Client");
+        setTitle("Free S3 Client - MIT License");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
