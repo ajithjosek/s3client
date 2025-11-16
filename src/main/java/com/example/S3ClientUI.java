@@ -33,6 +33,8 @@ public class S3ClientUI extends JFrame {
     private JButton treeGetObjectButton;
     private JButton treeDeleteButton;
     private JButton treeUploadButton;
+    private JButton editProfileButton;
+    private JButton saveProfileButton;
 
     private S3Service s3Service;
     private ProfileManager profileManager;
@@ -113,7 +115,7 @@ public class S3ClientUI extends JFrame {
 
         gbc.gridx = 2;
         gbc.gridy = 1;
-        JButton saveProfileButton = new JButton("Save Profile");
+        saveProfileButton = new JButton("Save Profile");
         topPanel.add(saveProfileButton, gbc);
 
         gbc.gridx = 2;
@@ -125,6 +127,11 @@ public class S3ClientUI extends JFrame {
         gbc.gridy = 3;
         JButton copyProfileButton = new JButton("Copy Profile");
         topPanel.add(copyProfileButton, gbc);
+
+        gbc.gridx = 2;
+        gbc.gridy = 4;
+        editProfileButton = new JButton("Edit");
+        topPanel.add(editProfileButton, gbc);
 
         gbc.gridx = 2;
         gbc.gridy = 5;
@@ -247,6 +254,15 @@ public class S3ClientUI extends JFrame {
         treeDeleteButton.addActionListener(e -> treeDeleteSelectedObject());
         treeUploadButton.addActionListener(e -> treeUploadToObjectPath());
 
+        // Add Action Listeners for profile buttons after the UI components are initialized
+        editProfileButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                setProfileFieldsEditable(true);
+                log("Profile fields are now editable. Make changes and click 'Save Profile' to save.");
+            }
+        });
+
         // Add panels to frame
         add(topPanel, BorderLayout.NORTH);
         add(tabbedPane, BorderLayout.CENTER);
@@ -259,6 +275,9 @@ public class S3ClientUI extends JFrame {
             profileComboBox.setSelectedIndex(0);
             selectProfile(); // Populate the fields with the first profile's data
         }
+
+        // Initially set fields as non-editable except path field
+        setProfileFieldsEditable(false);
 
         // Add Action Listeners
         profileComboBox.addActionListener(new ActionListener() {
@@ -346,6 +365,8 @@ public class S3ClientUI extends JFrame {
                 log("Profile '" + selectedProfile.getProfileName() + "' loaded.");
             }
         }
+        // Set profile fields as non-editable by default after loading
+        setProfileFieldsEditable(false);
     }
 
     private void newProfile() {
@@ -358,6 +379,8 @@ public class S3ClientUI extends JFrame {
             Profile newProfile = new Profile(profileName, "", "", "", "us-east-1");
             profileComboBox.addItem(newProfile);
             profileComboBox.setSelectedItem(newProfile);
+            // Set profile fields as non-editable by default after creating a new profile
+            setProfileFieldsEditable(false);
         }
     }
 
@@ -381,6 +404,8 @@ public class S3ClientUI extends JFrame {
 
         profileManager.saveProfile(selectedProfile);
         log("Profile '" + profileName + "' saved.");
+        // Set profile fields back to non-editable after saving
+        setProfileFieldsEditable(false);
     }
 
     private void deleteProfile() {
@@ -476,6 +501,8 @@ public class S3ClientUI extends JFrame {
             profileComboBox.setSelectedItem(newProfile);
             selectProfile(); // Update UI with the new profile's data
             log("Profile '" + selectedProfile.getProfileName() + "' copied to '" + newProfileName + "'");
+            // Set profile fields as non-editable by default after copying
+            setProfileFieldsEditable(false);
         }
     }
 
@@ -795,6 +822,26 @@ public class S3ClientUI extends JFrame {
             log("Error refreshing tree view: " + e.getMessage());
             JOptionPane.showMessageDialog(this, "Error refreshing tree view: " + e.getMessage(),
                 "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void setProfileFieldsEditable(boolean editable) {
+        // Set all profile-related fields to the specified editable state
+        bucketNameField.setEditable(editable);
+        clientIdField.setEditable(editable);
+        clientSecretField.setEditable(editable);
+        regionField.setEditable(editable);
+
+        // Path field remains always editable
+        pathField.setEditable(true);
+
+        // Update button states
+        if (editable) {
+            editProfileButton.setEnabled(false); // Disable edit button when in edit mode
+            saveProfileButton.setEnabled(true);  // Enable save button when in edit mode
+        } else {
+            editProfileButton.setEnabled(true);  // Enable edit button when not in edit mode
+            saveProfileButton.setEnabled(false); // Disable save button when not in edit mode
         }
     }
 
