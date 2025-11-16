@@ -35,6 +35,7 @@ public class S3ClientUI extends JFrame {
     private JButton treeUploadButton;
     private JButton editProfileButton;
     private JButton saveProfileButton;
+    private PrefixColorListCellRenderer listRenderer;
 
     private S3Service s3Service;
     private ProfileManager profileManager;
@@ -147,6 +148,9 @@ public class S3ClientUI extends JFrame {
         objectList = new JList<>(listModel);
         // Add border to the list
         objectList.setBorder(BorderFactory.createEtchedBorder());
+        // Create and set custom renderer to color code items with similar prefixes
+        listRenderer = new PrefixColorListCellRenderer();
+        objectList.setCellRenderer(listRenderer);
         listPanel.add(new JScrollPane(objectList), BorderLayout.CENTER);
 
         // Add selection listener to enable/disable get and delete buttons based on selection
@@ -517,6 +521,10 @@ public class S3ClientUI extends JFrame {
         }
         log("Listing objects in bucket '" + bucketName + "' at path '" + path + "'");
         listModel.clear();
+        // Reset color mapping for the new list
+        if (listRenderer != null) {
+            listRenderer.resetColorMapping();
+        }
         try {
             List<String> objects = s3Service.listObjects(bucketName, path);
 
@@ -534,6 +542,10 @@ public class S3ClientUI extends JFrame {
             log("Error listing objects: " + e.getMessage());
             // Clear the list to show empty state on error
             listModel.clear();
+            // Reset color mapping for error message
+            if (listRenderer != null) {
+                listRenderer.resetColorMapping();
+            }
             listModel.addElement("Error loading list: " + e.getMessage());
         }
     }
@@ -758,6 +770,10 @@ public class S3ClientUI extends JFrame {
 
         // Use SwingUtilities.invokeLater to ensure the refresh happens on the event dispatch thread
         SwingUtilities.invokeLater(() -> {
+            // Reset color mapping for the new list
+            if (listRenderer != null) {
+                listRenderer.resetColorMapping();
+            }
             try {
                 String path = pathField.getText(); // Use the current path/prefix from the field
                 List<String> objects = s3Service.listObjects(bucketName, path);
@@ -781,6 +797,10 @@ public class S3ClientUI extends JFrame {
                 // Clear the list to show error state on error
                 SwingUtilities.invokeLater(() -> {
                     listModel.clear();
+                    // Reset color mapping for error message
+                    if (listRenderer != null) {
+                        listRenderer.resetColorMapping();
+                    }
                     listModel.addElement("Error loading list: " + e.getMessage());
                 });
             }
@@ -1050,5 +1070,88 @@ public class S3ClientUI extends JFrame {
                 new S3ClientUI().setVisible(true);
             }
         });
+    }
+
+    /**
+     * Custom ListCellRenderer that colors list items based on their prefix.
+     * Items with the same prefix up to the first slash will have the same background color.
+     */
+    private class PrefixColorListCellRenderer extends JLabel implements ListCellRenderer<String> {
+
+        // Array of pastel colors to use for different prefixes
+        private final Color[] colors = {
+            new Color(255, 229, 204), // Pastel Orange
+            new Color(255, 240, 245), // Pastel Pink
+            new Color(229, 255, 204), // Pastel Green
+            new Color(204, 255, 255), // Pastel Blue
+            new Color(245, 245, 220), // Pastel Beige
+            new Color(255, 220, 220), // Pastel Red
+            new Color(220, 255, 220), // Pastel Light Green
+            new Color(255, 250, 220), // Pastel Yellow
+            new Color(230, 230, 250), // Pastel Lavender
+            new Color(255, 225, 205)  // Pastel Peach
+        };
+
+        // Map to store which color is used for each prefix
+        private final java.util.Map<String, Color> prefixColorMap = new java.util.HashMap<>();
+
+        @Override
+        public Component getListCellRendererComponent(JList<? extends String> list, String value,
+                int index, boolean isSelected, boolean cellHasFocus) {
+
+            // Set the text of the label
+            setText(value);
+
+            // If it's an error message, don't apply coloring
+            if (value != null && (value.startsWith("Error loading list:") || value.equals("No objects in the given path"))) {
+                setBackground(list.getBackground()); // Use default background
+                setForeground(list.getForeground()); // Use default foreground
+                return this;
+            }
+
+            // If selected, use selection colors as defined by the L&F
+            if (isSelected) {
+                setBackground(list.getSelectionBackground());
+                setForeground(list.getSelectionForeground());
+            } else {
+                // Determine the prefix for coloring (everything before the first slash)
+                String prefix = getPrefix(value);
+
+                // Get or assign a color for this prefix
+                Color backgroundColor = prefixColorMap.computeIfAbsent(prefix,
+                    k -> colors[prefixColorMap.size() % colors.length]);
+
+                setBackground(backgroundColor);
+                setForeground(list.getForeground()); // Keep default text color
+            }
+
+            setEnabled(list.isEnabled());
+            setFont(list.getFont());
+            setOpaque(true); // So that background color is painted
+
+            return this;
+        }
+
+        /**
+         * Extract the prefix from a string. The prefix is defined as the part of the string
+         * up to and including the first slash, or the entire string if no slash is found.
+         */
+        private String getPrefix(String value) {
+            if (value == null) return "";
+
+            int slashIndex = value.indexOf('/');
+            if (slashIndex != -1) {
+                return value.substring(0, slashIndex + 1); // Include the slash
+            } else {
+                return value; // No slash found, use the entire string as prefix
+            }
+        }
+
+        /**
+         * Reset the color mapping when the list content changes significantly
+         */
+        public void resetColorMapping() {
+            prefixColorMap.clear();
+        }
     }
 }
