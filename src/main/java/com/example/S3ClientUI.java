@@ -725,6 +725,12 @@ public class S3ClientUI extends JFrame {
                 log("Tree view auto-refreshed with " + objects.size() + " objects.");
             } catch (Exception e) {
                 log("Error auto-refreshing tree view: " + e.getMessage());
+                // Clear the tree to show empty state on error
+                SwingUtilities.invokeLater(() -> {
+                    DefaultMutableTreeNode emptyRoot = new DefaultMutableTreeNode("Error loading tree");
+                    treeModel.setRoot(emptyRoot);
+                    treeModel.reload();
+                });
             }
         });
     }
@@ -820,6 +826,10 @@ public class S3ClientUI extends JFrame {
             log("Tree view refreshed with " + objects.size() + " objects.");
         } catch (Exception e) {
             log("Error refreshing tree view: " + e.getMessage());
+            // Clear the tree to show empty state on error
+            DefaultMutableTreeNode emptyRoot = new DefaultMutableTreeNode("Error loading tree");
+            treeModel.setRoot(emptyRoot);
+            treeModel.reload();
             JOptionPane.showMessageDialog(this, "Error refreshing tree view: " + e.getMessage(),
                 "Error", JOptionPane.ERROR_MESSAGE);
         }
