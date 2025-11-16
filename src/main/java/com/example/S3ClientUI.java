@@ -224,13 +224,18 @@ public class S3ClientUI extends JFrame {
         logScrollPane = new JScrollPane(logArea);
         tabbedPane.addTab("Log", logScrollPane);
 
-        // Add tab change listener to auto-refresh tree when Tree View tab is selected
+        // Add tab change listener to auto-refresh tree when Tree View tab is selected and list when List tab is selected
         tabbedPane.addChangeListener(e -> {
             JTabbedPane sourceTabbedPane = (JTabbedPane) e.getSource();
             int selectedTabIndex = sourceTabbedPane.getSelectedIndex();
-            if (selectedTabIndex == 1 && "Tree View".equals(sourceTabbedPane.getTitleAt(selectedTabIndex))) {
+            String selectedTabTitle = sourceTabbedPane.getTitleAt(selectedTabIndex);
+
+            if ("Tree View".equals(selectedTabTitle)) {
                 // Tree View tab was selected, auto-refresh if we have a valid profile
                 autoRefreshTreeView();
+            } else if ("List".equals(selectedTabTitle)) {
+                // List tab was selected, auto-refresh if we have a valid profile
+                autoRefreshListView();
             }
         });
 
@@ -687,6 +692,45 @@ public class S3ClientUI extends JFrame {
                 log("Tree view auto-refreshed with " + objects.size() + " objects.");
             } catch (Exception e) {
                 log("Error auto-refreshing tree view: " + e.getMessage());
+            }
+        });
+    }
+
+    private void autoRefreshListView() {
+        // Check if we have a valid profile and S3 service
+        if (s3Service == null) {
+            log("S3 service not initialized. Please select a valid profile first.");
+            return;
+        }
+
+        // Check if we have a bucket name
+        String bucketName = bucketNameField.getText();
+        if (bucketName == null || bucketName.isEmpty()) {
+            log("No bucket name specified. Please enter a bucket name first.");
+            return;
+        }
+
+        log("Auto-refreshing list view for bucket: " + bucketName);
+
+        // Use SwingUtilities.invokeLater to ensure the refresh happens on the event dispatch thread
+        SwingUtilities.invokeLater(() -> {
+            try {
+                String path = pathField.getText(); // Use the current path/prefix from the field
+                List<String> objects = s3Service.listObjects(bucketName, path);
+
+                // Clear the list model and add new objects
+                listModel.clear();
+                if (objects.isEmpty()) {
+                    listModel.addElement("No objects in the given path");
+                } else {
+                    for (String object : objects) {
+                        listModel.addElement(object);
+                    }
+                }
+
+                log("List view auto-refreshed with " + objects.size() + " objects.");
+            } catch (Exception e) {
+                log("Error auto-refreshing list view: " + e.getMessage());
             }
         });
     }
