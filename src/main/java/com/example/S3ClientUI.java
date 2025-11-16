@@ -119,15 +119,18 @@ public class S3ClientUI extends JFrame {
         objectList = new JList<>(listModel);
         listPanel.add(new JScrollPane(objectList), BorderLayout.CENTER);
 
-        // Add selection listener to enable/disable delete button based on selection
+        // Add selection listener to enable/disable get and delete buttons based on selection
         objectList.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) { // Prevent multiple events during selection
-                deleteButton.setEnabled(objectList.getSelectedValue() != null);
+                boolean hasSelection = objectList.getSelectedValue() != null;
+                getObjectButton.setEnabled(hasSelection);
+                deleteButton.setEnabled(hasSelection);
             }
         });
 
         JPanel buttonPanel = new JPanel();
         getObjectButton = new JButton("Get Object");
+        getObjectButton.setEnabled(false); // Initially disabled until an object is selected
         uploadButton = new JButton("Upload");
         deleteButton = new JButton("Delete");
         deleteButton.setEnabled(false); // Initially disabled until an object is selected
@@ -294,14 +297,39 @@ public class S3ClientUI extends JFrame {
             String bucketName = bucketNameField.getText();
             log("Getting object '" + selectedObject + "' from bucket '" + bucketName + "'");
             try {
+                // Get the object content from S3
                 String content = s3Service.getObject(bucketName, selectedObject);
-                JTextArea textArea = new JTextArea(content);
-                textArea.setEditable(false);
-                JScrollPane scrollPane = new JScrollPane(textArea);
-                scrollPane.setPreferredSize(new Dimension(500, 400));
-                JOptionPane.showMessageDialog(this, scrollPane, "Object Content", JOptionPane.INFORMATION_MESSAGE);
+
+                // Extract file name from the selected object path
+                String fileName = selectedObject.substring(selectedObject.lastIndexOf('/') + 1);
+                if (fileName.isEmpty()) {
+                    fileName = selectedObject; // If no path separator, use the whole string
+                }
+
+                // Create a file save dialog
+                JFileChooser fileChooser = new JFileChooser();
+                fileChooser.setDialogTitle("Save Object As");
+                fileChooser.setSelectedFile(new java.io.File(fileName));
+
+                int userSelection = fileChooser.showSaveDialog(this);
+
+                if (userSelection == JFileChooser.APPROVE_OPTION) {
+                    java.io.File fileToSave = fileChooser.getSelectedFile();
+
+                    // Write the content to the selected file
+                    try (java.io.FileWriter fileWriter = new java.io.FileWriter(fileToSave)) {
+                        fileWriter.write(content);
+                        log("Object '" + selectedObject + "' saved to '" + fileToSave.getAbsolutePath() + "'");
+                    } catch (java.io.IOException e) {
+                        log("Error writing file: " + e.getMessage());
+                        JOptionPane.showMessageDialog(this, "Error saving file: " + e.getMessage(),
+                            "Save Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
             } catch (Exception e) {
                 log("Error getting object: " + e.getMessage());
+                JOptionPane.showMessageDialog(this, "Error getting object from S3: " + e.getMessage(),
+                    "S3 Error", JOptionPane.ERROR_MESSAGE);
             }
         } else {
             log("Please select an object to get.");
